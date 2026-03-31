@@ -50,17 +50,23 @@ def capture_faces(user_name, num_images=20):
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = detect_faces(gray, detector)
+
+        # Guard against trigger in case face detector returns None or empty list
+        if faces is None or len(faces) == 0:
+            cv2.imshow('Face Capture', frame)
+            cv2.waitKey(1)
+            continue
+
         frame = draw_rectangles(frame, faces)
 
         cv2.imshow('Face Capture', frame)
         cv2.waitKey(1)
 
-        if len(faces) > 0:
-            x, y, w, h = faces[0]
-            count += 1
-            file_path = os.path.join(user_dir, f"{count}.jpg")
-            cv2.imwrite(file_path, gray[y:y + h, x:x + w])
-            print(f"Captured: {count}/{num_images}")
+        x, y, w, h = faces[0]
+        count += 1
+        file_path = os.path.join(user_dir, f"{count}.jpg")
+        cv2.imwrite(file_path, gray[y:y + h, x:x + w])
+        print(f"Captured: {count}/{num_images}")
 
     cap.release()
     cv2.destroyAllWindows()
