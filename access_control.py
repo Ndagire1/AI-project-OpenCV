@@ -103,22 +103,34 @@ def access_control():
         
         current_time = datetime.now().timestamp()
         is_authorized = False
+        current_user = None
+        locked_due_unknown = False
 
         for (x, y, w, h) in faces:
             user_name, confidence = recognize_face(gray[y:y + h, x:x + w], recognizer, user_map)
-            
+
             if confidence < CONFIDENCE_THRESHOLD and user_name != "Unknown":
+                if current_user is None:
+                    current_user = user_name
+                elif current_user != user_name:
+                    # If multiple different recognized users appear, keep system locked until stable
+                    locked_due_unknown = True
+
                 draw_face_box(frame, x, y, w, h, user_name, confidence)
-                is_authorized = True
-                
-                # Log only if enough time has passed since last log
-                if current_time - last_recognized["time"] > 30:
-                    log_access(user_name)
-                    last_recognized = {"name": user_name, "time": current_time}
+            else:
+                # any unknown face should lock the system
+                locked_due_unknown = True
+                break
+
+        if len(faces) > 0 and not locked_due_unknown and current_user:
+            is_authorized = True
+            if current_time - last_recognized["time"] > 30 or last_recognized["name"] != current_user:
+                log_access(current_user)
+                last_recognized = {"name": current_user, "time": current_time}
 
         # Display status
-        if is_authorized and last_recognized["name"]:
-            draw_status(frame, f"ACCESS GRANTED: {last_recognized['name']}", True)
+        if is_authorized and current_user:
+            draw_status(frame, f"ACCESS GRANTED: {current_user}", True)
         else:
             draw_status(frame, "SYSTEM LOCKED", False)
 

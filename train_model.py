@@ -62,7 +62,7 @@ def load_faces_from_user(user_path, detector, user_id):
         for (x, y, w, h) in detected_faces:
             face = gray[y:y + h, x:x + w]
 
-            # 🔥 Resize for consistency
+            # Resize for consistency
             face = cv2.resize(face, (200, 200))
 
             faces.append(face)
@@ -97,7 +97,14 @@ def load_all_faces(detector):
 
 def train_model(faces, ids):
     """Train LBPH face recognizer."""
-    recognizer = cv2.face.LBPHFaceRecognizer_create()
+    try:
+        recognizer = cv2.face.LBPHFaceRecognizer_create()
+    except AttributeError as e:
+        raise RuntimeError(
+            "cv2.face is missing: install opencv-contrib-python (not opencv-python) "
+            "in your current virtualenv"
+        ) from e
+
     recognizer.train(faces, np.array(ids))
     return recognizer
 

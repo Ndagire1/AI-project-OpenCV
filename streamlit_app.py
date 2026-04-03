@@ -2,6 +2,10 @@ import streamlit as st
 import os
 from datetime import datetime
 
+from capture_image import capture_faces
+from train_model import load_face_detector, load_all_faces, train_model, save_model, get_user_id_map
+from access_control import access_control
+
 # -----------------------------
 # PAGE CONFIG
 # -----------------------------
@@ -103,11 +107,15 @@ elif page == "Capture Face":
         else:
             st.info("Opening camera...")
 
-            # This allows input to script
-            command = f'echo {username} | python capture_image.py'
-            os.system(command)
-
-            st.success("✅ Capture Completed")
+            try:
+                capture_faces(username.strip(), num_images=20)
+                st.success("✅ Capture Completed")
+            except Exception as e:
+                st.error(f"Capture failed: {e}")
+                st.info("Attempting fallback via script call")
+                command = f'echo {username.strip()} | python capture_image.py'
+                os.system(command)
+                st.success("✅ Capture Completed (fallback)")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -122,9 +130,19 @@ elif page == "Train Model":
     if st.button("Train Model"):
         st.info("Training model...")
 
-        os.system("python train_model.py")
+        try:
+            detector = load_face_detector()
+            user_map = get_user_id_map()
+            faces, ids = load_all_faces(detector)
 
-        st.success("✅ Training Completed")
+            if len(ids) == 0:
+                st.error("No face images found. Please capture faces first.")
+            else:
+                recognizer = train_model(faces, ids)
+                save_model(recognizer)
+                st.success(f"✅ Training completed for {len(set(ids))} user(s)")
+        except Exception as e:
+            st.error(f"Training failed: {e}")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -141,10 +159,14 @@ elif page == "Recognition":
     if st.button("Start Recognition"):
         st.info("Starting camera...")
 
-        # THIS FIXES YOUR PROBLEM
-        os.system("python access_control.py")
-
-        st.success(f"System executed at {datetime.now().strftime('%H:%M:%S')}")
+        try:
+            access_control()
+            st.success(f"System executed at {datetime.now().strftime('%H:%M:%S')}")
+        except Exception as e:
+            st.error(f"Recognition failed: {e}")
+            st.info("Attempting fallback via script call")
+            os.system("python access_control.py")
+            st.success(f"System executed at {datetime.now().strftime('%H:%M:%S')} (fallback)")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
